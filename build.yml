@@ -1,0 +1,77 @@
+name: Build LineageOS 19.1 for SM-A207F
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y git bc bison build-essential curl flex g++ gperf libxml2-utils make python3 zip zlib1g-dev openjdk-11-jdk repo
+
+    - name: Create Working Directory
+      run: |
+        mkdir rom && cd rom
+        git config --global user.email "you@example.com"
+        git config --global user.name "YourName"
+
+    - name: Init LineageOS Repo
+      run: |
+        cd rom
+        repo init -u https://github.com/LineageOS/android.git -b lineage-19.1
+        repo sync -c -j4
+
+    - name: Clone Device Tree, Kernel & Vendor
+      run: |
+        cd rom
+        git clone https://github.com/LineageOS/android_device_samsung_a20s.git device/samsung/a20s
+        git clone https://github.com/TheMuppets/proprietary_vendor_samsung.git vendor/samsung
+        git clone https://github.com/LineageOS/android_kernel_samsung_msm8937.git kernel/samsung/msm8937
+
+    - name: Apply Custom Modifications
+      run: |
+        cd rom/device/samsung/a20s
+        echo '# Pixel Launcher & UI features' >> device.mk
+        echo 'PRODUCT_PACKAGES += \\' >> device.mk
+        echo '    PixelLauncher \\' >> device.mk
+        echo '    Wellbeing \\' >> device.mk
+        echo '    ConfigUpdater \\' >> device.mk
+        echo '    GoogleServicesFramework \\' >> device.mk
+        echo '    SetupWizardPrebuilt \\' >> device.mk
+        echo '    Velvet \\' >> device.mk
+        echo '    GoogleCalendarSyncAdapter \\' >> device.mk
+        echo '    GoogleContactsSyncAdapter \\' >> device.mk
+        echo '    MarkupGoogle' >> device.mk
+
+        echo '' >> device.mk
+        echo '# RAM Plus & AOD' >> device.mk
+        echo 'PRODUCT_PRODUCT_PROPERTIES += \\' >> device.mk
+        echo '    ro.always_on_display.available=true \\' >> device.mk
+        echo '    ro.config.physical_ram=3g \\' >> device.mk
+        echo '    ro.zram.enabled=true \\' >> device.mk
+        echo '    ro.zram.size=1073741824 \\' >> device.mk
+        echo '    ro.surface_flinger.set_idle_timer_ms=200 \\' >> device.mk
+        echo '    ro.surface_flinger.set_touch_timer_ms=200 \\' >> device.mk
+        echo '    ro.surface_flinger.set_display_power_timer_ms=200 \\' >> device.mk
+        echo '    persist.sys.sf.lcd_density=280' >> device.mk
+
+    - name: Setup Environment & Lunch
+      run: |
+        cd rom
+        source build/envsetup.sh
+        lunch lineage_a20s-userdebug
+
+    - name: Start Build
+      run: |
+        cd rom
+        mka systemimage
+
+    - name: Upload system.img
+      uses: actions/upload-artifact@v3
+      with:
+        name: system-img
+        path: rom/out/target/product/a20s/system.img
