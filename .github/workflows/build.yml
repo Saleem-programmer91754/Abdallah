@@ -1,4 +1,4 @@
-name: Build Custom ROM
+name: Build Custom Android ROM
 
 on:
   workflow_dispatch:
@@ -8,43 +8,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-
-    - name: Set up environment
+    - name: Install Dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y git curl python3 python-is-python3 zip unzip bc build-essential openjdk-8-jdk
+        sudo apt update
+        sudo apt install -y openjdk-11-jdk git wget bc bison build-essential \
+          curl flex g++-multilib gcc-multilib gnupg gperf libncurses5-dev \
+          libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush \
+          rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python-is-python3
 
     - name: Install repo tool
       run: |
         mkdir -p ~/bin
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
-        echo 'export PATH=$HOME/bin:$PATH' >> $GITHUB_ENV
+        echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Initialize ROM
-      run: |
-        mkdir rom && cd rom
-        ~/bin/repo init -u https://github.com/PixelExperience/manifest -b twelve-go
-        ~/bin/repo sync -c --no-tags --no-clone-bundle --optimized-fetch --prune -j4
+    - name: Setup ROM Directory
+      run: mkdir rom
 
-    - name: Clone device sources
+    - name: Initialize ROM repo
       run: |
         cd rom
-        git clone https://github.com/YourUser/device_samsung_a20s.git -b android-12 device/samsung/a20s
-        git clone https://github.com/YourUser/vendor_samsung_a20s.git -b android-12 vendor/samsung/a20s
-        git clone https://github.com/YourUser/kernel_samsung_a20s.git -b android-12 kernel/samsung/a20s
+        repo init -u https://github.com/PixelExperience/manifest -b twelve
+        repo sync -j$(nproc) --force-sync
 
-    - name: Start build
+    - name: Clone Device Trees, Vendor & Kernel
+      run: |
+        cd rom
+        # ✅ Device Tree for SM-A207FXX
+        git clone https://github.com/shashankx86/android_device_samsung_a20s.git device/samsung/a20s
+        # ✅ Vendor Tree
+        git clone https://gitlab.taiao.ai/fw-dumps/samsung/a20s.git vendor/samsung/a20s
+        # ✅ Kernel Source
+        git clone https://github.com/darkphyxia/android_kernel_samsung_a20s.git kernel/samsung/a20s
+
+    - name: Build the ROM
       run: |
         cd rom
         source build/envsetup.sh
         lunch aosp_a20s-userdebug
-        make bacon -j$(nproc)
+        mka bacon
 
-    - name: Upload ROM
-      uses: actions/upload-artifact@v3
+    - name: Upload ROM Artifact
+      uses: actions/upload-artifact@v4
       with:
-        name: Custom-ROM
+        name: PixelExperience-A20s
         path: rom/out/target/product/a20s/*.zip
