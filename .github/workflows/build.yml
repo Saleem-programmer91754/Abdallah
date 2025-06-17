@@ -1,4 +1,4 @@
-name: Build Custom Android 12 Go ROM
+name: Build Custom ROM
 
 on:
   workflow_dispatch:
@@ -6,53 +6,45 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
     - name: Set up environment
       run: |
-        sudo apt update
-        sudo apt install openjdk-11-jdk git curl bc bison build-essential zip unzip -y
-        java -version
+        sudo apt-get update
+        sudo apt-get install -y git curl python3 python-is-python3 zip unzip bc build-essential openjdk-8-jdk
 
-    - name: Set up repo tool
+    - name: Install repo tool
       run: |
-        mkdir ~/bin
+        mkdir -p ~/bin
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
-        echo 'export PATH=~/bin:$PATH' >> ~/.bashrc
-        source ~/.bashrc
+        echo 'export PATH=$HOME/bin:$PATH' >> $GITHUB_ENV
 
-    - name: Initialize AOSP (Go Edition)
+    - name: Initialize ROM
       run: |
         mkdir rom && cd rom
-        git config --global user.name "Your Name"
-        git config --global user.email "you@example.com"
-        repo init -u https://android.googlesource.com/platform/manifest -b android-12.0.0_r32 --depth=1
-        repo sync -c -j4
+        ~/bin/repo init -u https://github.com/PixelExperience/manifest -b twelve-go
+        ~/bin/repo sync -c --no-tags --no-clone-bundle --optimized-fetch --prune -j4
 
-    - name: Apply Custom Tweaks
+    - name: Clone device sources
       run: |
         cd rom
-        echo "Applying custom features..."
-        # أمثلة على التعديلات — يمكن تعديلها أو تطويرها لاحقًا
-        # هنا تقدر تضيف ملفات XML لتفعيل AOD و ExtraDim و One-handed mode وغيرها
+        git clone https://github.com/YourUser/device_samsung_a20s.git -b android-12 device/samsung/a20s
+        git clone https://github.com/YourUser/vendor_samsung_a20s.git -b android-12 vendor/samsung/a20s
+        git clone https://github.com/YourUser/kernel_samsung_a20s.git -b android-12 kernel/samsung/a20s
 
-    - name: Build ROM
+    - name: Start build
       run: |
         cd rom
         source build/envsetup.sh
-        lunch aosp_arm-eng
-        make -j$(nproc)
+        lunch aosp_a20s-userdebug
+        make bacon -j$(nproc)
 
-    - name: Compress Output
-      run: |
-        cd rom/out/target/product/generic
-        zip -r9 custom_android12go.zip system.img
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload ROM
+      uses: actions/upload-artifact@v3
       with:
-        name: custom-android-rom
-        path: rom/out/target/product/generic/custom_android12go.zip
+        name: Custom-ROM
+        path: rom/out/target/product/a20s/*.zip
