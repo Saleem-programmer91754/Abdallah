@@ -1,0 +1,61 @@
+name: Build Custom Android ROM
+
+on: 
+  workflow_dispatch:
+
+jobs: 
+   build: 
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install Dependencies
+      run: |
+       sudo apt update
+       sudo apt install -y openjdk-11-jdk git wget bc bison build-essential \
+       curl flex g++-multilib gcc-multilib gnupg gperf libncurses5-dev \
+       libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush \
+       rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python-is-python3
+
+    - name: Install repo tool
+      run: |
+        mkdir -p ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
+   
+    - name: Setup ROM Directory
+      run: mkdir rom
+
+    - name: Initialize ROM repo
+      run: |
+        cd rom
+        repo init -u https://github.com/PixelExperience/manifest -b twelve
+        repo sync -j$(nproc) --force-sync
+
+    - name: Clone Device Trees, Vendor & Kernel
+      run: |
+       cd rom
+       git clone https://github.com/shashankx86/android_device_samsung_a20s.git device/samsung/a20s
+       git clone https://gitlab.taiao.ai/fw-dumps/samsung/a20s.git vendor/samsung/a20s
+       git clone https://github.com/darkphyxia/android_kernel_samsung_a20s.git kernel/samsung/a20s
+
+    - name: Add Smart Resource Saver Feature
+      run: |
+        cd rom
+        echo "Adding Smart Resource Saver implementation..."
+        mkdir -p frameworks/base/core/java/com/custom/powersaver/
+        echo '// SmartResourceSaver.java\npackage com.custom.powersaver;\n\npublic class SmartResourceSaver {\n  public static boolean isEnabled() {\n    // Placeholder logic\n    return true;\n  }\n}' > frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
+
+    - name: Build the ROM
+      run: |
+        cd rom
+        source build/envsetup.sh
+        lunch aosp_a20s-userdebug
+        mka bacon
+
+    - name: Upload ROM Artifact
+      uses: actions/upload-artifact@v4
+      with:
+         name: PixelExperience-A20s
+         path: rom/out/target/product/a20s/*.zip
+
