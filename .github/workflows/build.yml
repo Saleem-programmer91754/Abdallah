@@ -50,15 +50,13 @@ jobs:
         cd rom
         echo "Adding Smart Resource Saver implementation..."
         mkdir -p frameworks/base/core/java/com/custom/powersaver
-        cat <<EOF > frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
-package com.custom.powersaver;
-
-public class SmartResourceSaver {
-    public static boolean isEnabled() {
-        return true;
-    }
-}
-EOF
+        echo 'package com.custom.powersaver;' > frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
+        echo '' >> frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
+        echo 'public class SmartResourceSaver {' >> frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
+        echo '    public static boolean isEnabled() {' >> frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
+        echo '        return true;' >> frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
+        echo '    }' >> frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
+        echo '}' >> frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
 
     - name: Build the ROM
       run: |
