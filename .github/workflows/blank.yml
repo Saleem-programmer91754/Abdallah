@@ -26,11 +26,13 @@ jobs:
     - name: Setup ROM Directory
       run: mkdir rom
 
-    - name: Initialize ROM repo (without external_faceunlock)
+    - name: Initialize ROM repo and remove faceunlock
       run: |
         cd rom
         repo init -u https://github.com/PixelExperience/manifest -b twelve
-        sed -i '/external[\/_]faceunlock/d' .repo/manifests/default.xml
+        # انتظر ثواني حتى ينشأ الملف ثم احذف المشروع المسبب للمشكلة
+        sleep 5
+        sed -i '/external\/faceunlock/d' .repo/manifests/default.xml
 
     - name: Sync ROM source
       run: |
@@ -49,7 +51,16 @@ jobs:
         cd rom
         echo "Adding Smart Resource Saver implementation..."
         mkdir -p frameworks/base/core/java/com/custom/powersaver/
-        echo '// SmartResourceSaver.java\npackage com.custom.powersaver;\n\npublic class SmartResourceSaver {\n  public static boolean isEnabled() {\n    return true;\n  }\n}' > frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
+        cat <<EOF > frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
+        // SmartResourceSaver.java
+        package com.custom.powersaver;
+
+        public class SmartResourceSaver {
+        public static boolean isEnabled() {
+        return true;
+        }
+              }
+EOF
 
     - name: Build the ROM
       run: |
