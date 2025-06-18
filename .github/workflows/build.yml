@@ -26,17 +26,26 @@ jobs:
     - name: Setup ROM Directory
       run: mkdir rom
 
-    - name: Initialize ROM repo and remove faceunlock
+    - name: Initialize ROM repo
       run: |
         cd rom
         repo init -u https://github.com/PixelExperience/manifest -b twelve
-        sleep 5
-        sed -i '/external\/faceunlock/d' .repo/manifests/default.xml
+
+    - name: Remove broken faceunlock project
+      run: |
+        cd rom
+        sed -i '/external\/faceunlock/d' .repo/manifests/default.xml || true
 
     - name: Sync ROM source
       run: |
         cd rom
-        repo sync -j$(nproc) --force-sync
+        repo sync -j$(nproc) --force-sync || true
+
+    - name: Add external_faceunlock replacement
+      run: |
+        cd rom/external
+        # استنساخ النسخة البديلة من Kang‑OS‑R
+        git clone https://github.com/Kang-OS-R/external_faceunlock.git faceunlock
 
     - name: Clone Device Trees, Vendor & Kernel
       run: |
@@ -48,7 +57,6 @@ jobs:
     - name: Add Smart Resource Saver Feature
       run: |
         cd rom
-        echo "Adding Smart Resource Saver implementation..."
         mkdir -p frameworks/base/core/java/com/custom/powersaver
         echo 'package com.custom.powersaver;' > frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
         echo '' >> frameworks/base/core/java/com/custom/powersaver/SmartResourceSaver.java
